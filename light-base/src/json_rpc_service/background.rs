@@ -2870,7 +2870,7 @@ pub(super) async fn run<TPlat: PlatformRef>(
                             hex::encode(id)
                         };
 
-                        if me.network_service.peers_list().await.next().is_none() {
+                        if me.network_service.statement_peers_list().await.next().is_none() {
                             log!(
                                 &me.platform,
                                 Warn,

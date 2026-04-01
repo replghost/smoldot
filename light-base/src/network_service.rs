@@ -668,6 +668,15 @@ impl<TPlat: PlatformRef> NetworkServiceChain<TPlat> {
             .unwrap();
         rx.await.unwrap().into_iter()
     }
+
+    pub async fn statement_peers_list(&self) -> impl Iterator<Item = PeerId> {
+        let (tx, rx) = oneshot::channel();
+        self.messages_tx
+            .send(ToBackgroundChain::StatementPeersList { result: tx })
+            .await
+            .unwrap();
+        rx.await.unwrap().into_iter()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -878,6 +887,9 @@ enum ToBackgroundChain {
         result: oneshot::Sender<Vec<(PeerId, Vec<Multiaddr>)>>,
     },
     PeersList {
+        result: oneshot::Sender<Vec<PeerId>>,
+    },
+    StatementPeersList {
         result: oneshot::Sender<Vec<PeerId>>,
     },
 }
@@ -1810,10 +1822,7 @@ async fn background_task<TPlat: PlatformRef>(mut task: BackgroundTask<TPlat>) {
                 } else {
                     let peers_to_send = task
                         .network
-                        .gossip_connected_peers(
-                            chain_id,
-                            service::GossipKind::ConsensusTransactions,
-                        )
+                        .statement_connected_peers(chain_id)
                         .cloned()
                         .collect::<Vec<_>>();
 
@@ -1899,6 +1908,17 @@ async fn background_task<TPlat: PlatformRef>(mut task: BackgroundTask<TPlat>) {
                             chain_id,
                             service::GossipKind::ConsensusTransactions,
                         )
+                        .cloned()
+                        .collect(),
+                );
+            }
+            WakeUpReason::MessageForChain(
+                chain_id,
+                ToBackgroundChain::StatementPeersList { result },
+            ) => {
+                let _ = result.send(
+                    task.network
+                        .statement_connected_peers(chain_id)
                         .cloned()
                         .collect(),
                 );
