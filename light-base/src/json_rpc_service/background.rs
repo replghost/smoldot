@@ -2870,6 +2870,15 @@ pub(super) async fn run<TPlat: PlatformRef>(
                             hex::encode(id)
                         };
 
+                        if me.network_service.peers_list().await.next().is_none() {
+                            log!(
+                                &me.platform,
+                                Warn,
+                                &me.log_target,
+                                "No peers connected; statement subscription won't receive data",
+                            );
+                        }
+
                         me.statement_subscriptions
                             .insert(subscription_id.clone(), filter);
 
