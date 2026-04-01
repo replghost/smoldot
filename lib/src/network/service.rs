@@ -3448,6 +3448,44 @@ where
             .map(|(_, peer_index, _, _, _)| &self.peers[peer_index.0])
     }
 
+    /// Returns the peers that have an open outbound statement notification substream for the
+    /// given chain.
+    ///
+    /// # Panic
+    ///
+    /// Panics if the [`ChainId`] is invalid.
+    ///
+    pub fn statement_connected_peers(&self, chain_id: ChainId) -> impl Iterator<Item = &PeerId> {
+        assert!(self.chains.contains(chain_id.0));
+
+        self.notification_substreams_by_peer_id
+            .range(
+                (
+                    NotificationsProtocol::Statement {
+                        chain_index: chain_id.0,
+                    },
+                    PeerIndex(usize::MIN),
+                    SubstreamDirection::Out,
+                    NotificationsSubstreamState::MIN,
+                    SubstreamId::MIN,
+                )
+                    ..=(
+                        NotificationsProtocol::Statement {
+                            chain_index: chain_id.0,
+                        },
+                        PeerIndex(usize::MAX),
+                        SubstreamDirection::Out,
+                        NotificationsSubstreamState::MAX,
+                        SubstreamId::MAX,
+                    ),
+            )
+            .filter(move |(_, _, d, s, _)| {
+                *d == SubstreamDirection::Out
+                    && matches!(*s, NotificationsSubstreamState::Open { .. })
+            })
+            .map(|(_, peer_index, _, _, _)| &self.peers[peer_index.0])
+    }
+
     /// Returns the list of all peers for a [`Event::GossipConnected`] event of the given kind has
     /// been emitted.
     /// It is possible to send gossip notifications to these peers.
